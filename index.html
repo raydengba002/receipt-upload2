@@ -89,7 +89,7 @@
     </div>
     <div id="previewCount" class="preview-count" style="display:none"></div>
     <div class="preview-grid" id="previewGrid"></div>
-    <button class="btn-upload" id="uploadBtn" disabled>☁️ 上传</button>
+    <button class="btn-upload" id="uploadBtn" disabled>☁️ 上传 <span id="uploadHint" style="font-size:12px;font-weight:400;opacity:0.85;">（请先输入微信名）</span></button>
     <div class="status-box" id="statusBox">
       <div class="spinner" id="spinner" style="display:none"></div>
       <div style="flex:1">
@@ -133,9 +133,12 @@ var selectedFiles = [];
 
 // 위챗명 자동 저장/불러오기
 var savedName = localStorage.getItem('wechatName');
-if (savedName) customerName.value = savedName;
+if (savedName) { customerName.value = savedName; setTimeout(function(){ var h=document.getElementById('uploadHint'); if(h && savedName) h.style.display='none'; },0); }
 
 customerName.addEventListener('input', function() {
+  var hint = document.getElementById('uploadHint');
+  if (hint) hint.style.display = customerName.value.trim() ? 'none' : '';
+  //placeholder
   localStorage.setItem('wechatName', customerName.value.trim());
   if (customerName.value.trim()) {
     customerName.classList.remove('error');
@@ -228,7 +231,7 @@ function removeFile(idx) {
 }
 
 function checkReady() {
-  uploadBtn.disabled = !(selectedFiles.length > 0 && customerName.value.trim());
+  uploadBtn.disabled = !(selectedFiles.length > 0);
 }
 
 function showStatus(type, msg, showProg) {
