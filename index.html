@@ -14,10 +14,13 @@
     .container { max-width: 540px; margin: 2rem auto; padding: 0 1rem 2rem; }
     .card { background: #fff; border: none; border-radius: 14px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 2px 12px rgba(13,127,181,0.1); }
     .section-title { font-size: 12px; font-weight: 700; color: #1a9fd4; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
-    .field { margin-bottom: 1rem; }
+    .field { margin-bottom: 0.5rem; }
     .field label { display: block; font-size: 14px; color: #555; margin-bottom: 6px; font-weight: 500; }
     .field input[type="text"] { width: 100%; padding: 10px 14px; border: 1.5px solid #b8dff0; border-radius: 8px; font-size: 14px; color: #111; outline: none; transition: border-color 0.15s; background: #f5fbff; }
     .field input[type="text"]:focus { border-color: #1a9fd4; background: #fff; }
+    .field input[type="text"].error { border-color: #e53935; background: #fff5f5; }
+    .field-error { font-size: 12px; color: #e53935; margin-top: 5px; display: none; }
+    .field-error.show { display: block; }
     .drop-zone { border: 2px dashed #7dc8e8; border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.15s; background: #f0f9ff; margin-bottom: 1rem; }
     .drop-zone:hover, .drop-zone.drag-over { border-color: #1a9fd4; background: #daf0fc; }
     .drop-zone .icon { font-size: 36px; display: block; margin-bottom: 8px; }
@@ -71,7 +74,8 @@
     <p class="section-title">客户信息</p>
     <div class="field">
       <label>微信名</label>
-      <input type="text" id="customerName" placeholder="请输入微信名" />
+      <input type="text" id="customerName" placeholder="请输入微信名" autocomplete="off" />
+      <div class="field-error" id="nameError">⚠ 请先输入微信名</div>
     </div>
   </div>
 
@@ -122,10 +126,25 @@ var progressWrap = document.getElementById('progressWrap');
 var progressBar = document.getElementById('progressBar');
 var progressText = document.getElementById('progressText');
 var customerName = document.getElementById('customerName');
+var nameError = document.getElementById('nameError');
 var clearBtn = document.getElementById('clearBtn');
 
 var selectedFiles = [];
 
+// 위챗명 자동 저장/불러오기
+var savedName = localStorage.getItem('wechatName');
+if (savedName) customerName.value = savedName;
+
+customerName.addEventListener('input', function() {
+  localStorage.setItem('wechatName', customerName.value.trim());
+  if (customerName.value.trim()) {
+    customerName.classList.remove('error');
+    nameError.classList.remove('show');
+  }
+  checkReady();
+});
+
+// 중복 체크 (기록 청소와 별도)
 function getUploadedFiles() {
   return JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
 }
@@ -155,18 +174,18 @@ fileInput.addEventListener('change', function(e) {
 });
 
 function addFiles(files) {
-  var dupNames = [];
+  var dupCount = 0;
   files.forEach(function(file) {
     if (isDuplicate(file)) {
-      dupNames.push(file.name);
+      dupCount++;
       return;
     }
     if (!selectedFiles.find(function(f) { return f.name === file.name && f.size === file.size; })) {
       selectedFiles.push(file);
     }
   });
-  if (dupNames.length > 0) {
-    showStatus('warning', '⚠ ' + dupNames.length + ' 张照片已上传过，无法重复上传', false);
+  if (dupCount > 0) {
+    showStatus('warning', '⚠ ' + dupCount + ' 张照片已上传过，无法重复上传', false);
   } else {
     hideStatus();
   }
@@ -207,8 +226,6 @@ function removeFile(idx) {
   renderPreviews();
   checkReady();
 }
-
-customerName.addEventListener('input', checkReady);
 
 function checkReady() {
   uploadBtn.disabled = !(selectedFiles.length > 0 && customerName.value.trim());
@@ -264,16 +281,22 @@ function renderHistory() {
   }).join('');
 }
 
+// 기록 청소 — 중복 체크(uploadedFiles)는 유지
 clearBtn.addEventListener('click', function() {
-  if (confirm('确认清空所有上传记录？')) {
+  if (confirm('确认清空上传记录？\n（已上传照片的重复检测将继续有效）')) {
     localStorage.removeItem('uploadHistory');
-    localStorage.removeItem('uploadedFiles');
     renderHistory();
   }
 });
 
 uploadBtn.addEventListener('click', async function() {
-  if (selectedFiles.length === 0 || !customerName.value.trim()) return;
+  if (!customerName.value.trim()) {
+    customerName.classList.add('error');
+    nameError.classList.add('show');
+    return;
+  }
+  if (selectedFiles.length === 0) return;
+
   uploadBtn.disabled = true;
   var total = selectedFiles.length;
   var done = 0;
@@ -311,7 +334,6 @@ uploadBtn.addEventListener('click', async function() {
   if (failed === 0) {
     showStatus('success', '✓ 上传成功！' + done + ' 张照片已保存', false);
     saveHistory(customerName.value.trim(), done);
-    customerName.value = '';
     selectedFiles = [];
     renderPreviews();
   } else {
