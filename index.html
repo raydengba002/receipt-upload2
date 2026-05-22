@@ -231,7 +231,7 @@ function removeFile(idx) {
 }
 
 function checkReady() {
-  uploadBtn.disabled = !(selectedFiles.length > 0);
+  uploadBtn.disabled = !(selectedFiles.length > 0 && customerName.value.trim());
 }
 
 function showStatus(type, msg, showProg) {
